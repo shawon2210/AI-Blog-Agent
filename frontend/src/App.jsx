@@ -1,6 +1,13 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import './App.css'
 
+const MODELS = [
+  'gemini-2.0-flash',
+  'gemini-2.0-flash-lite',
+  'gemini-2.5-flash',
+  'gemini-2.5-pro',
+]
+
 const FEATURES = [
   { icon: 'bolt', title: 'SEO Optimized', desc: 'Semantic keyword injection for ranking.', color: 'text-primary' },
   { icon: 'record_voice_over', title: 'Brand Voice', desc: 'Consistent tonal alignment engine.', color: 'text-secondary' },
@@ -53,6 +60,9 @@ function App() {
   const [healthInfo, setHealthInfo] = useState(null)
   const [copied, setCopied] = useState(false)
   const [showExamples, setShowExamples] = useState(false)
+  const [apiKey, setApiKey] = useState('')
+  const [selectedModel, setSelectedModel] = useState('gemini-2.0-flash')
+  const [showApiSettings, setShowApiSettings] = useState(false)
   const outputRef = useRef(null)
   const inputRef = useRef(null)
   const abortRef = useRef(null)
@@ -90,7 +100,11 @@ function App() {
       const response = await fetch('/generate/stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ topic: trimmed }),
+        body: JSON.stringify({
+          topic: trimmed,
+          ...(apiKey ? { api_key: apiKey } : {}),
+          ...(apiKey ? { model: selectedModel } : {}),
+        }),
         signal: controller.signal,
       })
 
@@ -262,6 +276,59 @@ function App() {
                 <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>auto_awesome</span>
                 Generate Post
               </button>
+            )}
+          </div>
+
+          {/* API Settings */}
+          <div className="border-t border-outline-variant/15 pt-md">
+            <button
+              onClick={() => setShowApiSettings(!showApiSettings)}
+              className="flex items-center gap-1.5 text-[0.8rem] text-on-surface-variant bg-transparent border-none cursor-pointer px-0 py-1 font-body-md transition-colors hover:text-on-surface w-full"
+            >
+              <span className="material-symbols-outlined text-[16px]">key</span>
+              <span>API Settings</span>
+              {apiKey && <span className="w-1.5 h-1.5 rounded-full bg-secondary shadow-[0_0_6px_rgba(76,215,246,0.35)] ml-auto" />}
+              <svg className={`w-3 h-3 transition-transform ml-1 ${showApiSettings ? 'rotate-180' : ''}`} viewBox="0 0 12 12" fill="none">
+                <path d="M3 5l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+            {showApiSettings && (
+              <div className="mt-2 flex flex-col gap-2">
+                <div className="relative">
+                  <input
+                    type="password"
+                    value={apiKey}
+                    onChange={(e) => setApiKey(e.target.value)}
+                    placeholder="Enter your Google API key"
+                    className="w-full bg-surface-container-lowest border border-outline-variant/40 rounded-lg px-3 py-2 pr-9 text-label-md text-on-surface focus:ring-2 focus:ring-primary/40 focus:border-primary outline-none transition-all font-body-md placeholder:text-outline/60"
+                  />
+                  {apiKey && (
+                    <button
+                      onClick={() => setApiKey('')}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-outline hover:text-on-surface transition-colors bg-transparent border-none cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined text-[16px]">close</span>
+                    </button>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={selectedModel}
+                    onChange={(e) => setSelectedModel(e.target.value)}
+                    className="flex-1 bg-surface-container-lowest border border-outline-variant/40 rounded-lg px-3 py-2 text-label-md text-on-surface focus:ring-2 focus:ring-primary/40 focus:border-primary outline-none transition-all font-body-md"
+                  >
+                    {MODELS.map((m) => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
+                  </select>
+                  <span className={`text-label-xs px-2 py-0.5 rounded-full ${apiKey ? 'bg-secondary/15 text-secondary' : 'bg-surface-container-high text-outline'}`}>
+                    {apiKey ? 'Custom key' : 'Server key'}
+                  </span>
+                </div>
+                <p className="text-[10px] text-outline/70 leading-tight">
+                  Provide your own Google AI Studio API key. If empty, server-configured keys are used.
+                </p>
+              </div>
             )}
           </div>
 

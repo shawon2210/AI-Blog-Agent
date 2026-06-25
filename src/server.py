@@ -18,6 +18,7 @@ from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 load_dotenv()
 
+from google import genai
 from google.adk import Agent, Runner
 from google.adk.sessions import InMemorySessionService
 from google.genai import types
@@ -100,6 +101,8 @@ _cache = LRUCache(maxsize=settings.cache_maxsize, ttl=settings.cache_ttl)
 
 class TopicRequest(BaseModel):
     topic: str = Field(..., min_length=1, description="Blog post topic")
+    api_key: str | None = Field(None, description="Google API key (optional — uses server keys if omitted)")
+    model: str | None = Field(None, description="Model name (optional, default: gemini-2.0-flash)")
 
 class BlogResponse(BaseModel):
     status: str
@@ -206,6 +209,39 @@ def _handle_error(model_idx: int, key_idx: int, exc: Exception) -> bool:
         return True
     print(f"  [{_label(model_idx, key_idx)}] non-retryable: {str(exc)[:200]}")
     return False
+
+
+# ─── User-provided key helpers (bypass key rotation, use genai directly) ──
+
+AGENT_INSTRUCTION = (
+    "You are a professional blog content manager. When given a topic:\n"
+    "1. First, create a structured outline with title, introduction, 4-6 sections, and conclusion.\n"
+    "2. Then write the full blog post from that outline.\n"
+    "3. Make it engaging, well-structured, and publication-ready.\n"
+    "4. Add 3 alternative catchy titles and a tweet-length hook (max 280 chars).\n"
+    "The blog post should be 800-1500 words.\n\n"
+    "Output ONLY the final blog post as clean markdown. Start with '# ' for the title."
+)
+
+async def _call_with_user_key(topic: str, api_key: str, model: str) -> str:
+    client = genai.Client(api_key=api_key)
+    prompt = f"{AGENT_INSTRUCTION}\n\nWrite a detailed, engaging blog post about: {topic}"
+    response = await client.aio.models.generate_content(model=model, contents=prompt)
+    result = response.text
+    err = validate_blog_output(result)
+    if err:
+        raise RuntimeError(f"Validation failed: {err}")
+    return result
+
+async def _call_with_user_key_stream(topic: str, api_key: str, model: str):
+    client = genai.Client(api_key=api_key)
+    prompt = f"{AGENT_INSTRUCTION}\n\nWrite a detailed, engaging blog post about: {topic}"
+    async for chunk in client.aio.models.generate_content_stream(model=model, contents=prompt):
+        if chunk.text:
+            yield f"data: {json.dumps({'type': 'chunk', 'text': chunk.text})}\n\n"
+        if chunk.candidates and chunk.candidates[0].finish_reason == 3:
+            break
+    yield f"data: {json.dumps({'type': 'done', 'model_used': model})}\n\n"
 
 
 # ─── Actual API call to a single (model, key) — non-streaming ───────────────
@@ -373,6 +409,20 @@ async def generate_blog(request: TopicRequest):
     if not topic:
         return JSONResponse(status_code=400, content=BlogResponse(status="error", error="Topic cannot be empty").model_dump())
 
+    # User-provided API key — bypass key rotation
+    if request.api_key:
+        model = request.model or "gemini-2.0-flash"
+        try:
+            blog_text = await asyncio.wait_for(
+                _call_with_user_key(topic, request.api_key, model), timeout=REQUEST_TIMEOUT,
+            )
+            return BlogResponse(status="success", blog_post=blog_text, model_used=model)
+        except Exception as exc:
+            return JSONResponse(
+                status_code=500,
+                content=BlogResponse(status="error", error=f"{model}: {exc}").model_dump(),
+            )
+
     cache_key = topic.lower().strip()
     cached = _cache.get(cache_key)
     if cached:
@@ -417,6 +467,21 @@ async def generate_blog_stream(request: TopicRequest):
     topic = request.topic.strip()
     if not topic:
         return JSONResponse(status_code=400, content=BlogResponse(status="error", error="Topic cannot be empty").model_dump())
+
+    # User-provided API key — bypass key rotation
+    if request.api_key:
+        model = request.model or "gemini-2.0-flash"
+        async def _user_stream():
+            try:
+                async for sse in asyncio.wait_for(
+                    _call_with_user_key_stream(topic, request.api_key, model), timeout=REQUEST_TIMEOUT,
+                ):
+                    yield sse
+            except asyncio.TimeoutError:
+                yield f"data: {json.dumps({'type': 'error', 'error': f'{model}: timed out'})}\n\n"
+            except Exception as exc:
+                yield f"data: {json.dumps({'type': 'error', 'error': f'{model}: {exc}'})}\n\n"
+        return StreamingResponse(_user_stream(), media_type="text/event-stream")
 
     cache_key = topic.lower().strip()
     cached = _cache.get(cache_key)
