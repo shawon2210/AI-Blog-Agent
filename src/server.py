@@ -237,7 +237,8 @@ async def _call_with_user_key_stream(topic: str, api_key: str, model: str):
     client = genai.Client(api_key=api_key)
     prompt = f"{AGENT_INSTRUCTION}\n\nWrite a detailed, engaging blog post about: {topic}"
     try:
-        async for chunk in client.aio.models.generate_content_stream(model=model, contents=prompt):
+        stream = await client.aio.models.generate_content_stream(model=model, contents=prompt)
+        async for chunk in stream:
             if chunk.text:
                 yield f"data: {json.dumps({'type': 'chunk', 'text': chunk.text})}\n\n"
         yield f"data: {json.dumps({'type': 'done', 'model_used': model})}\n\n"
