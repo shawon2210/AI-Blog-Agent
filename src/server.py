@@ -473,15 +473,8 @@ async def generate_blog_stream(request: TopicRequest):
     if request.api_key:
         model = request.model or "gemini-2.0-flash"
         async def _user_stream():
-            try:
-                async for sse in asyncio.wait_for(
-                    _call_with_user_key_stream(topic, request.api_key, model), timeout=REQUEST_TIMEOUT,
-                ):
-                    yield sse
-            except asyncio.TimeoutError:
-                yield f"data: {json.dumps({'type': 'error', 'error': f'{model}: timed out'})}\n\n"
-            except Exception as exc:
-                yield f"data: {json.dumps({'type': 'error', 'error': f'{model}: {exc}'})}\n\n"
+            async for sse in _call_with_user_key_stream(topic, request.api_key, model):
+                yield sse
         return StreamingResponse(_user_stream(), media_type="text/event-stream")
 
     cache_key = topic.lower().strip()
