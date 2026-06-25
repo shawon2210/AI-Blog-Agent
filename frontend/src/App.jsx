@@ -64,6 +64,7 @@ function App() {
   const [selectedModel, setSelectedModel] = useState(() => localStorage.getItem('ai_blog_agent_model') || 'gemini-2.0-flash')
   const [showApiSettings, setShowApiSettings] = useState(false)
   const [keySaved, setKeySaved] = useState(!!localStorage.getItem('ai_blog_agent_api_key'))
+  const [loadingTimeout, setLoadingTimeout] = useState(false)
   const outputRef = useRef(null)
   const inputRef = useRef(null)
   const abortRef = useRef(null)
@@ -89,6 +90,12 @@ function App() {
       outputRef.current.scrollTop = outputRef.current.scrollHeight
     }
   }, [blogPost])
+
+  useEffect(() => {
+    if (!loading) { setLoadingTimeout(false); return }
+    const t = setTimeout(() => setLoadingTimeout(true), 15000)
+    return () => clearTimeout(t)
+  }, [loading])
 
   const handleGenerate = useCallback(async () => {
     const trimmed = topic.trim()
@@ -372,9 +379,24 @@ function App() {
 
           {/* Error message */}
           {error && (
-            <div className="flex items-center gap-2 px-3 py-2 rounded-lg text-[0.8rem] bg-error-container/20 border border-error/20 text-error">
-              <span className="material-symbols-outlined text-[16px]">error</span>
-              {error}
+            <div className="flex flex-col gap-1 px-3 py-2 rounded-lg text-[0.8rem] bg-error-container/20 border border-error/20 text-error">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-[16px]">error</span>
+                <span className="font-bold">Generation failed</span>
+              </div>
+              <p className="text-label-sm opacity-90 break-words">
+                {error.length > 200 ? error.slice(0, 200) + '...' : error}
+              </p>
+              {error.includes('429') || error.includes('RESOURCE_EXHAUSTED') ? (
+                <p className="text-[10px] mt-1 opacity-70">
+                  Your API key quota is exhausted. Try a different key, wait for daily reset, or enable billing at aistudio.google.com.
+                </p>
+              ) : null}
+              {error.includes('503') || error.includes('UNAVAILABLE') ? (
+                <p className="text-[10px] mt-1 opacity-70">
+                  The model is temporarily unavailable due to high demand. Please try again in a few minutes or select a different model.
+                </p>
+              ) : null}
             </div>
           )}
 
@@ -485,7 +507,16 @@ function App() {
                     <span className="material-symbols-outlined text-[28px] text-primary animate-spin">progress_activity</span>
                   </div>
                   <h3 className="text-headline-md text-primary">Forging content...</h3>
-                  <p className="text-on-surface-variant text-sm opacity-80">Our AI is crafting a publication-ready article</p>
+                  <p className="text-on-surface-variant text-sm opacity-80">
+                    {loadingTimeout
+                      ? 'Still working — AI generation can take up to a minute'
+                      : 'Our AI is crafting a publication-ready article'}
+                  </p>
+                  {loadingTimeout && (
+                    <p className="text-label-sm text-primary/60 animate-pulse">
+                      If it takes too long, check that your API key has available quota
+                    </p>
+                  )}
                 </div>
               )}
 

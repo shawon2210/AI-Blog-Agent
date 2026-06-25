@@ -4,7 +4,8 @@
   "framework": null,
   "functions": {
     "api/index.py": {
-      "includeFiles": "src/**"
+      "includeFiles": "src/**",
+      "maxDuration": 300
     }
   },
   "routes": [

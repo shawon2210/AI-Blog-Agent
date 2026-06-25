@@ -236,12 +236,13 @@ async def _call_with_user_key(topic: str, api_key: str, model: str) -> str:
 async def _call_with_user_key_stream(topic: str, api_key: str, model: str):
     client = genai.Client(api_key=api_key)
     prompt = f"{AGENT_INSTRUCTION}\n\nWrite a detailed, engaging blog post about: {topic}"
-    async for chunk in client.aio.models.generate_content_stream(model=model, contents=prompt):
-        if chunk.text:
-            yield f"data: {json.dumps({'type': 'chunk', 'text': chunk.text})}\n\n"
-        if chunk.candidates and chunk.candidates[0].finish_reason == 3:
-            break
-    yield f"data: {json.dumps({'type': 'done', 'model_used': model})}\n\n"
+    try:
+        async for chunk in client.aio.models.generate_content_stream(model=model, contents=prompt):
+            if chunk.text:
+                yield f"data: {json.dumps({'type': 'chunk', 'text': chunk.text})}\n\n"
+        yield f"data: {json.dumps({'type': 'done', 'model_used': model})}\n\n"
+    except Exception as exc:
+        yield f"data: {json.dumps({'type': 'error', 'error': f'{model}: {exc}'})}\n\n"
 
 
 # ─── Actual API call to a single (model, key) — non-streaming ───────────────
