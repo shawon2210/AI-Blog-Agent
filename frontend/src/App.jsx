@@ -60,12 +60,22 @@ function App() {
   const [healthInfo, setHealthInfo] = useState(null)
   const [copied, setCopied] = useState(false)
   const [showExamples, setShowExamples] = useState(false)
-  const [apiKey, setApiKey] = useState('')
-  const [selectedModel, setSelectedModel] = useState('gemini-2.0-flash')
+  const [apiKey, setApiKey] = useState(() => localStorage.getItem('ai_blog_agent_api_key') || '')
+  const [selectedModel, setSelectedModel] = useState(() => localStorage.getItem('ai_blog_agent_model') || 'gemini-2.0-flash')
   const [showApiSettings, setShowApiSettings] = useState(false)
+  const [keySaved, setKeySaved] = useState(!!localStorage.getItem('ai_blog_agent_api_key'))
   const outputRef = useRef(null)
   const inputRef = useRef(null)
   const abortRef = useRef(null)
+
+  useEffect(() => {
+    localStorage.setItem('ai_blog_agent_api_key', apiKey)
+    setKeySaved(!!apiKey)
+  }, [apiKey])
+
+  useEffect(() => {
+    localStorage.setItem('ai_blog_agent_model', selectedModel)
+  }, [selectedModel])
 
   useEffect(() => {
     fetch('/health')
@@ -156,13 +166,13 @@ function App() {
       setError(err.message || 'Failed to connect')
       setLoading(false)
     }
-  }, [topic])
+  }, [topic, apiKey, selectedModel])
 
-  const handleCancel = () => {
+  const handleCancel = useCallback(() => {
     abortRef.current?.abort()
     abortRef.current = null
     setLoading(false)
-  }
+  }, [])
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && !loading) {
@@ -179,11 +189,11 @@ function App() {
     } catch {}
   }
 
-  const handleExampleClick = (ex) => {
+  const handleExampleClick = useCallback((ex) => {
     setTopic(ex)
     setShowExamples(false)
     inputRef.current?.focus()
-  }
+  }, [])
 
   const keysAvail = healthInfo?.keys?.available ?? 0
   const keysTotal = healthInfo?.keys?.total ?? 0
@@ -321,8 +331,9 @@ function App() {
                       <option key={m} value={m}>{m}</option>
                     ))}
                   </select>
-                  <span className={`text-label-xs px-2 py-0.5 rounded-full ${apiKey ? 'bg-secondary/15 text-secondary' : 'bg-surface-container-high text-outline'}`}>
-                    {apiKey ? 'Custom key' : 'Server key'}
+                  <span className={`text-label-xs px-2 py-0.5 rounded-full flex items-center gap-1 ${apiKey ? 'bg-secondary/15 text-secondary' : 'bg-surface-container-high text-outline'}`}>
+                    {apiKey && <span className="w-1 h-1 rounded-full bg-secondary" />}
+                    {apiKey ? (keySaved ? 'Saved' : 'Unsaved') : 'Server key'}
                   </span>
                 </div>
                 <p className="text-[10px] text-outline/70 leading-tight">
