@@ -73,6 +73,27 @@ body {
   transition: border-color 0.3s;
 }
 
+@media (min-width: 1024px) {
+  .blog-output {
+    font-size: 0.9375rem;
+    padding: 24px;
+    line-height: 1.75;
+  }
+  .blog-output h1 { font-size: 1.6rem; }
+  .blog-output h2 { font-size: 1.25rem; }
+  .blog-output h3 { font-size: 1.1rem; }
+}
+
+@media (min-width: 1280px) {
+  .blog-output {
+    font-size: 1rem;
+    padding: 28px;
+    line-height: 1.8;
+  }
+  .blog-output h1 { font-size: 1.75rem; }
+  .blog-output h2 { font-size: 1.35rem; }
+}
+
 .blog-output.streaming {
   border-color: #a078ff;
   box-shadow: 0 0 20px rgba(160, 120, 255, 0.12);

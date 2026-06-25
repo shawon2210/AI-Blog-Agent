@@ -149,7 +149,7 @@ export default function App() {
       <div className="fixed inset-0 grid-overlay pointer-events-none z-0" />
 
       {/* ─── Slim Header ─────────────────────────────────── */}
-      <header className="fixed top-0 w-full h-[44px] z-50 glass-header border-b border-outline-variant/15 flex items-center justify-between px-3 sm:px-4">
+      <header className="fixed top-0 w-full h-[44px] lg:h-[48px] z-50 glass-header border-b border-outline-variant/15 flex items-center justify-between px-3 sm:px-4 lg:px-6">
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-[8px] bg-gradient-to-br from-primary-container to-primary flex items-center justify-center text-white text-xs font-bold shadow-lg flex-shrink-0">
             B
@@ -189,19 +189,19 @@ export default function App() {
       </div>
 
       {/* ─── Main ────────────────────────────────────────── */}
-      <main className={`pt-[44px] ${hasContent ? 'pb-0' : 'pb-[28px]'} min-h-screen flex relative z-10`}>
+      <main className={`pt-[44px] lg:pt-[48px] ${hasContent ? 'pb-0' : 'pb-[28px]'} min-h-screen flex relative z-10`}>
         {/* ─── Compose Panel ────────────────────────────── */}
         <aside className={`
-          w-full lg:w-[340px] lg:fixed lg:top-[44px] lg:bottom-0
+          w-full lg:w-[380px] xl:w-[420px] lg:fixed lg:top-[48px] lg:bottom-0
           lg:border-r border-outline-variant/15 lg:bg-surface-container-low/40 lg:backdrop-blur-md
           flex flex-col
           ${mobileTab === 'compose' ? 'flex' : 'hidden'} lg:flex
           ${hasContent ? '' : 'pb-0'}
         `}>
-          <div className="flex-1 overflow-y-auto px-3 py-3 sm:px-4 sm:py-4 flex flex-col gap-3">
+          <div className="flex-1 overflow-y-auto px-3 py-3 sm:px-4 sm:py-4 lg:px-6 lg:py-5 xl:px-7 xl:py-6 flex flex-col gap-3 lg:gap-4 xl:gap-5">
             {/* Topic Input */}
             <div className="relative group">
-              <label className="text-[10px] font-bold text-outline uppercase tracking-widest mb-1.5 block">Topic</label>
+              <label className="text-[10px] lg:text-xs font-bold text-outline uppercase tracking-widest mb-1.5 block">Topic</label>
               <div className="relative">
                 <textarea
                   ref={inputRef}
@@ -211,7 +211,7 @@ export default function App() {
                   placeholder="Describe your blog post topic..."
                   disabled={loading}
                   rows={3}
-                  className="w-full h-28 bg-surface-container-lowest border border-outline-variant/30 rounded-[10px] px-3 py-2.5 pr-9 text-sm text-on-surface focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none transition-all resize-none disabled:opacity-50"
+                  className="w-full h-28 lg:h-[120px] bg-surface-container-lowest border border-outline-variant/30 rounded-[10px] px-3 py-2.5 pr-9 text-sm lg:text-[15px] text-on-surface focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none transition-all resize-none disabled:opacity-50"
                 />
                 <span className="absolute top-2.5 right-3 material-symbols-outlined text-outline/50 group-focus-within:text-primary/60 transition-colors text-[18px]">edit_note</span>
               </div>
@@ -221,7 +221,7 @@ export default function App() {
             {loading ? (
               <button
                 onClick={handleCancel}
-                className="w-full py-2.5 rounded-[10px] flex items-center justify-center gap-2 text-sm font-bold transition-all bg-surface-container border border-outline-variant/20 hover:border-outline-variant/40 hover:text-white"
+                className="w-full py-2.5 lg:py-3 rounded-[10px] flex items-center justify-center gap-2 text-sm lg:text-[15px] font-bold transition-all bg-surface-container border border-outline-variant/20 hover:border-outline-variant/40 hover:text-white"
               >
                 <span className="w-3 h-3 border-2 border-outline-variant border-t-primary rounded-full animate-spin" />
                 Cancel
@@ -230,7 +230,7 @@ export default function App() {
               <button
                 onClick={handleGenerate}
                 disabled={!topic.trim()}
-                className="primary-gradient-btn w-full py-2.5 rounded-[10px] flex items-center justify-center gap-2 text-sm font-bold text-white disabled:opacity-30 disabled:cursor-not-allowed"
+                className="primary-gradient-btn w-full py-2.5 lg:py-3 rounded-[10px] flex items-center justify-center gap-2 text-sm lg:text-[15px] font-bold text-white disabled:opacity-30 disabled:cursor-not-allowed"
               >
                 <span className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>auto_awesome</span>
                 Generate
@@ -238,12 +238,12 @@ export default function App() {
             )}
 
             {/* Example Topics */}
-            <div className="flex flex-wrap gap-1.5">
+            <div className="flex flex-wrap gap-1.5 lg:gap-2">
               {EXAMPLES.map((ex, i) => (
                 <button
                   key={i}
                   onClick={() => { setTopic(ex); setMobileTab('output') }}
-                  className="text-[11px] px-2 py-1 rounded-full bg-surface-container border border-outline-variant/15 text-outline hover:text-primary hover:border-primary/30 hover:bg-primary/5 transition-all"
+                  className="text-[11px] lg:text-xs px-2 py-1 lg:px-3 lg:py-1.5 rounded-full bg-surface-container border border-outline-variant/15 text-outline hover:text-primary hover:border-primary/30 hover:bg-primary/5 transition-all"
                 >
                   {ex}
                 </button>
@@ -252,10 +252,10 @@ export default function App() {
 
             {/* API Settings (expandable inline) */}
             {showApi && (
-              <div className="border border-outline-variant/15 rounded-[10px] p-3 bg-surface-container-lowest/60 space-y-2">
+              <div className="border border-outline-variant/15 rounded-[10px] p-3 lg:p-4 bg-surface-container-lowest/60 space-y-2 lg:space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold text-outline uppercase tracking-widest">API Key</span>
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${apiKey ? 'bg-secondary/15 text-secondary' : 'text-outline'}`}>
+                  <span className="text-[10px] lg:text-xs font-bold text-outline uppercase tracking-widest">API Key</span>
+                  <span className={`text-[10px] lg:text-xs px-1.5 py-0.5 rounded-full ${apiKey ? 'bg-secondary/15 text-secondary' : 'text-outline'}`}>
                     {apiKey ? 'Saved' : 'None'}
                   </span>
                 </div>
@@ -265,7 +265,7 @@ export default function App() {
                     value={apiKey}
                     onChange={(e) => setApiKey(e.target.value)}
                     placeholder="Enter your Google API key"
-                    className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-lg px-2.5 py-1.5 pr-8 text-xs text-on-surface focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none transition-all"
+                    className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-lg px-2.5 py-1.5 lg:px-3 lg:py-2 pr-8 text-xs lg:text-sm text-on-surface focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none transition-all"
                   />
                   {apiKey && (
                     <button onClick={() => setApiKey('')} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-outline hover:text-on-surface transition-colors bg-transparent border-none cursor-pointer">
@@ -276,38 +276,38 @@ export default function App() {
                 <select
                   value={selectedModel}
                   onChange={(e) => setSelectedModel(e.target.value)}
-                  className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-lg px-2.5 py-1.5 text-xs text-on-surface focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none transition-all"
+                  className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-lg px-2.5 py-1.5 lg:px-3 lg:py-2 text-xs lg:text-sm text-on-surface focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none transition-all"
                 >
                   {MODELS.map((m) => (<option key={m} value={m}>{m}</option>))}
                 </select>
-                <p className="text-[9px] text-outline/60 leading-tight">Leave empty to use server keys. Saved in browser.</p>
+                <p className="text-[9px] lg:text-[10px] text-outline/60 leading-tight">Leave empty to use server keys. Saved in browser.</p>
               </div>
             )}
 
             {/* Error */}
             {error && (
-              <div className="rounded-[10px] px-3 py-2 text-xs bg-error-container/15 border border-error/15 text-error space-y-1">
+              <div className="rounded-[10px] px-3 py-2 lg:px-4 lg:py-3 text-xs lg:text-sm bg-error-container/15 border border-error/15 text-error space-y-1">
                 <div className="flex items-center gap-1.5 font-bold">
-                  <span className="material-symbols-outlined text-[14px]">error</span> Generation failed
+                  <span className="material-symbols-outlined text-[14px] lg:text-[16px]">error</span> Generation failed
                 </div>
-                <p className="opacity-80 break-words">{error.length > 180 ? error.slice(0, 180) + '...' : error}</p>
+                <p className="opacity-80 break-words">{error.length > 280 ? error.slice(0, 280) + '...' : error}</p>
                 {(error.includes('429') || error.includes('RESOURCE_EXHAUSTED')) && (
-                  <p className="opacity-60 text-[10px]">Key quota exhausted. Try a different key or wait for reset.</p>
+                  <p className="opacity-60 text-[10px] lg:text-xs">Key quota exhausted. Try a different key or wait for reset.</p>
                 )}
                 {(error.includes('503') || error.includes('UNAVAILABLE')) && (
-                  <p className="opacity-60 text-[10px]">Model temporarily unavailable. Try again or pick a different model.</p>
+                  <p className="opacity-60 text-[10px] lg:text-xs">Model temporarily unavailable. Try again or pick a different model.</p>
                 )}
               </div>
             )}
 
             {/* Features */}
             {!hasContent && !loading && !error && (
-              <div className="grid grid-cols-2 gap-2 pt-1">
+              <div className="grid grid-cols-2 gap-2 lg:gap-3 pt-1">
                 {FEATURES.map((f, i) => (
-                  <div key={i} className="bg-surface-container/30 rounded-[10px] p-2.5 card-hover">
-                    <span className={`material-symbols-outlined text-[16px] ${f.color} block mb-0.5`}>{f.icon}</span>
-                    <div className="text-[11px] font-bold text-on-surface">{f.title}</div>
-                    <div className="text-[9px] text-outline leading-tight">{f.desc}</div>
+                  <div key={i} className="bg-surface-container/30 rounded-[10px] p-2.5 lg:p-3 card-hover">
+                    <span className={`material-symbols-outlined text-[16px] lg:text-[20px] ${f.color} block mb-0.5`}>{f.icon}</span>
+                    <div className="text-[11px] lg:text-sm font-bold text-on-surface">{f.title}</div>
+                    <div className="text-[9px] lg:text-[11px] text-outline leading-tight">{f.desc}</div>
                   </div>
                 ))}
               </div>
@@ -315,15 +315,15 @@ export default function App() {
 
             {/* Loading status */}
             {loading && (
-              <div className="flex items-center gap-2 text-[11px] text-primary/70">
+              <div className="flex items-center gap-2 text-[11px] lg:text-sm text-primary/70">
                 <span className="w-2 h-2 rounded-full bg-primary animate-pulse shadow-[0_0_6px_rgba(208,188,255,0.3)]" />
                 {loadingTimeout ? 'Still working...' : 'Generating...'}
               </div>
             )}
           </div>
 
-          {/* Slim Status */}
-          <div className="hidden lg:flex h-[28px] items-center px-4 border-t border-outline-variant/10 text-[9px] text-outline/50">
+          {/* Status */}
+          <div className="hidden lg:flex h-[30px] xl:h-[34px] items-center px-4 xl:px-5 border-t border-outline-variant/10 text-[9px] xl:text-[10px] text-outline/50">
             <span className="flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-secondary-fixed animate-pulse shadow-[0_0_4px_rgba(172,237,255,0.2)]" />
               Ready
@@ -334,19 +334,19 @@ export default function App() {
 
         {/* ─── Output Panel ─────────────────────────────── */}
         <section className={`
-          flex-1 lg:ml-[340px] min-h-[calc(100vh-44px)] flex flex-col
+          flex-1 lg:ml-[380px] xl:ml-[420px] min-h-[calc(100vh-44px)] lg:min-h-[calc(100vh-48px)] flex flex-col
           ${mobileTab === 'output' ? 'flex' : 'hidden'} lg:flex
         `}>
-          <div className="flex-1 flex flex-col px-3 py-3 sm:px-4 sm:py-4 lg:px-6 lg:py-5 max-w-4xl mx-auto w-full">
+          <div className="flex-1 flex flex-col px-3 py-3 sm:px-4 sm:py-4 lg:px-8 lg:py-6 xl:px-10 xl:py-8 max-w-4xl mx-auto w-full">
             {/* Output Header */}
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2.5">
-                <h1 className="text-base font-bold text-white">Output</h1>
+            <div className="flex items-center justify-between mb-3 lg:mb-4">
+              <div className="flex items-center gap-2.5 lg:gap-3">
+                <h1 className="text-base lg:text-lg font-bold text-white">Output</h1>
                 {hasContent && (
                   <>
-                    <span className="text-[10px] text-outline/60 font-mono">{wordCount}w · {readTime}m</span>
+                    <span className="text-[10px] lg:text-xs text-outline/60 font-mono">{wordCount}w · {readTime}m</span>
                     {modelInfo && (
-                      <span className={`text-[9px] px-1.5 py-0.5 rounded font-mono ${modelInfo.cached ? 'bg-secondary/10 text-secondary' : 'bg-primary/10 text-primary'}`}>
+                      <span className={`text-[9px] lg:text-[10px] px-1.5 py-0.5 lg:px-2 rounded font-mono ${modelInfo.cached ? 'bg-secondary/10 text-secondary' : 'bg-primary/10 text-primary'}`}>
                         {modelInfo.cached ? 'Cached' : (modelInfo.model?.split('/').pop() || 'AI')}
                       </span>
                     )}
@@ -361,21 +361,21 @@ export default function App() {
 
               {!hasContent && !isGenerating && (
                 <div className="flex-1 flex flex-col items-center justify-center text-center px-6 relative z-10">
-                  <div className="w-12 h-12 rounded-full bg-surface-container-high/50 flex items-center justify-center border border-outline-variant/15 mb-3">
-                    <span className="material-symbols-outlined text-[22px] text-outline/30">auto_fix_high</span>
+                  <div className="w-12 h-12 lg:w-14 lg:h-14 rounded-full bg-surface-container-high/50 flex items-center justify-center border border-outline-variant/15 mb-3 lg:mb-4">
+                    <span className="material-symbols-outlined text-[22px] lg:text-[26px] text-outline/30">auto_fix_high</span>
                   </div>
-                  <h3 className="text-sm font-bold text-on-surface mb-1">Your masterpiece starts here</h3>
-                  <p className="text-[11px] text-outline/60 max-w-xs">Enter a topic on the left and hit Generate to forge your next blog post.</p>
+                  <h3 className="text-sm lg:text-base font-bold text-on-surface mb-1">Your masterpiece starts here</h3>
+                  <p className="text-[11px] lg:text-sm text-outline/60 max-w-xs">Enter a topic on the left and hit Generate to forge your next blog post.</p>
                 </div>
               )}
 
               {isGenerating && (
                 <div className="flex-1 flex flex-col items-center justify-center text-center px-6 relative z-10">
-                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center border border-primary/15 mb-3">
-                    <span className="material-symbols-outlined text-[22px] text-primary animate-spin">progress_activity</span>
+                  <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-full bg-primary/10 flex items-center justify-center border border-primary/15 mb-3 lg:mb-4">
+                    <span className="material-symbols-outlined text-[22px] lg:text-[26px] text-primary animate-spin">progress_activity</span>
                   </div>
-                  <h3 className="text-sm font-bold text-primary mb-1">Forging content...</h3>
-                  <p className="text-[11px] text-on-surface-variant/70">
+                  <h3 className="text-sm lg:text-base font-bold text-primary mb-1">Forging content...</h3>
+                  <p className="text-[11px] lg:text-sm text-on-surface-variant/70">
                     {loadingTimeout ? 'Still working — this can take up to a minute' : 'AI is crafting your article'}
                   </p>
                 </div>
@@ -394,8 +394,8 @@ export default function App() {
             </div>
 
             {/* Tip */}
-            <div className="mt-2 text-[9px] text-outline/40 text-center hidden lg:block">
-              {navigator.platform?.includes('Mac') ? '⌘' : 'Ctrl'}+G to generate
+            <div className="mt-2 lg:mt-3 text-[9px] lg:text-[10px] text-outline/40 text-center hidden lg:block">
+              {navigator.platform?.includes('Mac') ? '⌘' : 'Ctrl'}+Enter to generate
             </div>
           </div>
         </section>
