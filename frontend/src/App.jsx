@@ -9,10 +9,10 @@ const MODELS = [
 ]
 
 const FEATURES = [
-  { icon: 'bolt', title: 'SEO Optimized', desc: 'Semantic keyword injection for ranking.', color: 'text-primary' },
-  { icon: 'record_voice_over', title: 'Brand Voice', desc: 'Consistent tonal alignment engine.', color: 'text-secondary' },
-  { icon: 'search_insights', title: 'Instant Research', desc: 'Web-augmented factual accuracy.', color: 'text-tertiary' },
-  { icon: 'layers', title: 'Multi-model', desc: 'Ensemble processing for quality.', color: 'text-primary-fixed-dim' },
+  { icon: 'bolt', title: 'SEO', desc: 'Semantic keyword injection', color: 'text-primary' },
+  { icon: 'record_voice_over', title: 'Voice', desc: 'Consistent tonal alignment', color: 'text-secondary' },
+  { icon: 'search_insights', title: 'Research', desc: 'Web-augmented accuracy', color: 'text-tertiary' },
+  { icon: 'layers', title: 'Multi-model', desc: 'Ensemble quality processing', color: 'text-primary-fixed-dim' },
 ]
 
 const EXAMPLES = [
@@ -21,8 +21,6 @@ const EXAMPLES = [
   'Zero-Knowledge Proofs Explained Simply',
   'Why Rust is the Next Big Thing in Web Development',
 ]
-
-const TOPIC_TAGS = ['#technology', '#lifestyle', '#marketing']
 
 function parseMarkdown(text) {
   if (!text) return ''
@@ -51,46 +49,29 @@ function estimateReadingTime(words) {
   return Math.max(1, Math.round(words / 200))
 }
 
-function App() {
+export default function App() {
   const [topic, setTopic] = useState('')
   const [blogPost, setBlogPost] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [modelInfo, setModelInfo] = useState(null)
-  const [healthInfo, setHealthInfo] = useState(null)
   const [copied, setCopied] = useState(false)
-  const [showExamples, setShowExamples] = useState(false)
-  const [apiKey, setApiKey] = useState(() => localStorage.getItem('ai_blog_agent_api_key') || '')
-  const [selectedModel, setSelectedModel] = useState(() => localStorage.getItem('ai_blog_agent_model') || 'gemini-2.0-flash')
-  const [showApiSettings, setShowApiSettings] = useState(false)
-  const [keySaved, setKeySaved] = useState(!!localStorage.getItem('ai_blog_agent_api_key'))
+  const [showApi, setShowApi] = useState(false)
+  const [apiKey, setApiKey] = useState(() => localStorage.getItem('ak') || '')
+  const [selectedModel, setSelectedModel] = useState(() => localStorage.getItem('am') || 'gemini-2.0-flash')
   const [loadingTimeout, setLoadingTimeout] = useState(false)
+  const [mobileTab, setMobileTab] = useState('compose')
   const outputRef = useRef(null)
   const inputRef = useRef(null)
   const abortRef = useRef(null)
+  const hasContent = !!blogPost
+  const isGenerating = loading && !blogPost
 
+  useEffect(() => { localStorage.setItem('ak', apiKey) }, [apiKey])
+  useEffect(() => { localStorage.setItem('am', selectedModel) }, [selectedModel])
   useEffect(() => {
-    localStorage.setItem('ai_blog_agent_api_key', apiKey)
-    setKeySaved(!!apiKey)
-  }, [apiKey])
-
-  useEffect(() => {
-    localStorage.setItem('ai_blog_agent_model', selectedModel)
-  }, [selectedModel])
-
-  useEffect(() => {
-    fetch('/health')
-      .then(r => r.json())
-      .then(d => setHealthInfo(d))
-      .catch(() => {})
-  }, [])
-
-  useEffect(() => {
-    if (outputRef.current) {
-      outputRef.current.scrollTop = outputRef.current.scrollHeight
-    }
+    if (outputRef.current) outputRef.current.scrollTop = outputRef.current.scrollHeight
   }, [blogPost])
-
   useEffect(() => {
     if (!loading) { setLoadingTimeout(false); return }
     const t = setTimeout(() => setLoadingTimeout(true), 15000)
@@ -99,72 +80,49 @@ function App() {
 
   const handleGenerate = useCallback(async () => {
     const trimmed = topic.trim()
-    if (!trimmed) {
-      setError('Please enter a topic')
-      return
-    }
-
-    setLoading(true)
-    setError(null)
-    setBlogPost('')
-    setModelInfo(null)
-    setShowExamples(false)
-
+    if (!trimmed) { setError('Please enter a topic'); return }
+    setLoading(true); setError(null); setBlogPost(''); setModelInfo(null)
     const controller = new AbortController()
     abortRef.current = controller
-
     try {
       const response = await fetch('/generate/stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           topic: trimmed,
-          ...(apiKey ? { api_key: apiKey } : {}),
-          ...(apiKey ? { model: selectedModel } : {}),
+          ...(apiKey ? { api_key: apiKey, model: selectedModel } : {}),
         }),
         signal: controller.signal,
       })
-
       if (!response.ok) {
         const data = await response.json().catch(() => ({}))
         throw new Error(data.error || `Server error (${response.status})`)
       }
-
       const reader = response.body.getReader()
       const decoder = new TextDecoder()
-      let buffer = ''
-      let fullText = ''
-
+      let buffer = '', fullText = ''
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
-
         buffer += decoder.decode(value, { stream: true })
         const lines = buffer.split('\n')
         buffer = lines.pop() || ''
-
         for (const line of lines) {
           if (!line.startsWith('data: ')) continue
           try {
             const data = JSON.parse(line.slice(6))
             switch (data.type) {
               case 'chunk':
-                fullText += data.text
-                setBlogPost(fullText)
+                fullText += data.text; setBlogPost(fullText)
                 break
               case 'done':
                 setModelInfo({ model: data.model_used, cached: data.model_used === 'cache' })
                 setLoading(false)
                 break
-              case 'model_fallback':
-                setModelInfo({ fallback: true, from: data.model, to: data.next })
-                break
               case 'error':
                 throw new Error(data.error)
             }
-          } catch (e) {
-            if (e.message !== 'error') console.warn('SSE parse:', e)
-          }
+          } catch (e) { if (e.message !== 'error') console.warn('SSE:', e) }
         }
       }
       setLoading(p => { if (p) return false; return p })
@@ -175,352 +133,254 @@ function App() {
     }
   }, [topic, apiKey, selectedModel])
 
-  const handleCancel = useCallback(() => {
-    abortRef.current?.abort()
-    abortRef.current = null
-    setLoading(false)
-  }, [])
+  const handleCancel = useCallback(() => { abortRef.current?.abort(); abortRef.current = null; setLoading(false) }, [])
+  const handleKeyDown = (e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && !loading) { e.preventDefault(); handleGenerate() } }
+  const handleCopy = async () => { try { await navigator.clipboard.writeText(blogPost); setCopied(true); setTimeout(() => setCopied(false), 2000) } catch {} }
 
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && !loading) {
-      e.preventDefault()
-      handleGenerate()
-    }
-  }
-
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(blogPost)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    } catch {}
-  }
-
-  const handleExampleClick = useCallback((ex) => {
-    setTopic(ex)
-    setShowExamples(false)
-    inputRef.current?.focus()
-  }, [])
-
-  const keysAvail = healthInfo?.keys?.available ?? 0
-  const keysTotal = healthInfo?.keys?.total ?? 0
   const wordCount = countWords(blogPost)
   const readTime = estimateReadingTime(wordCount)
-  const hasContent = !!blogPost
-  const isGenerating = loading && !blogPost
 
   return (
     <div className="relative min-h-screen overflow-x-hidden">
-      {/* ─── Ambient Background ─────────────────────────── */}
       <div className="mesh-gradient">
         <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-primary-container rounded-full" />
         <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-secondary-container rounded-full" />
-        <div className="absolute top-[30%] right-[20%] w-[30%] h-[30%] bg-tertiary-container rounded-full" />
       </div>
       <div className="fixed inset-0 grid-overlay pointer-events-none z-0" />
 
-      {/* ─── Header ─────────────────────────────────────── */}
-      <header className="fixed top-0 w-full h-[56px] z-50 glass-header border-b border-outline-variant/20 flex items-center justify-between px-lg">
-        <div className="flex items-center gap-sm">
-          <div className="w-8 h-8 rounded-[10px] bg-gradient-to-br from-primary-container to-primary flex items-center justify-center text-white text-sm font-bold shadow-lg flex-shrink-0">
+      {/* ─── Slim Header ─────────────────────────────────── */}
+      <header className="fixed top-0 w-full h-[44px] z-50 glass-header border-b border-outline-variant/15 flex items-center justify-between px-3 sm:px-4">
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-[8px] bg-gradient-to-br from-primary-container to-primary flex items-center justify-center text-white text-xs font-bold shadow-lg flex-shrink-0">
             B
           </div>
-          <span className="hidden sm:inline text-headline-md font-bold text-primary">BlogForge</span>
+          <span className="text-sm font-bold text-primary hidden sm:inline">BlogForge</span>
         </div>
-        <nav className="hidden md:flex items-center gap-lg">
-          <a className="text-secondary font-bold text-label-md" href="#">Compose</a>
-          <a className="text-on-surface-variant hover:text-on-surface transition-colors px-sm py-1 rounded text-label-md" href="#">History</a>
-          <a className="text-on-surface-variant hover:text-on-surface transition-colors px-sm py-1 rounded text-label-md" href="#">Templates</a>
-          <a className="text-on-surface-variant hover:text-on-surface transition-colors px-sm py-1 rounded text-label-md" href="#">Settings</a>
-        </nav>
-        <div className="flex items-center gap-md">
-          <button className="p-xs text-primary-fixed-dim hover:bg-surface-variant/40 transition-colors rounded-full active:scale-[0.98]">
-            <span className="material-symbols-outlined text-[20px]">key</span>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowApi(!showApi)}
+            className={`p-1.5 rounded-lg transition-all ${showApi ? 'bg-surface-container-high text-secondary' : 'text-outline hover:text-on-surface hover:bg-surface-container-high/50'}`}
+            title="API Settings"
+          >
+            <span className="material-symbols-outlined text-[18px]">key</span>
           </button>
-          {healthInfo && (
-            <div className="flex items-center gap-1.5 text-label-sm text-outline px-2 py-1 rounded-full bg-surface-container-lowest border border-outline-variant/30" title={`${keysAvail}/${keysTotal} keys available`}>
-              <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${healthInfo.status === 'ok' ? 'bg-secondary shadow-[0_0_8px_rgba(76,215,246,0.35)]' : 'bg-error'}`} />
-              <span className="hidden sm:inline">{keysAvail}/{keysTotal} keys</span>
-            </div>
+          {hasContent && (
+            <button
+              onClick={handleCopy}
+              className="p-1.5 rounded-lg text-outline hover:text-on-surface hover:bg-surface-container-high/50 transition-all"
+              title="Copy"
+            >
+              <span className="material-symbols-outlined text-[18px]">{copied ? 'check' : 'content_copy'}</span>
+            </button>
           )}
-          <div className="w-8 h-8 rounded-full bg-surface-container-high border border-outline-variant/40 flex items-center justify-center">
-            <span className="material-symbols-outlined text-[18px] text-on-surface-variant">person</span>
-          </div>
         </div>
       </header>
 
-      {/* ─── Main Layout ────────────────────────────────── */}
-      <main className="pt-[56px] pb-[32px] min-h-screen flex flex-col lg:flex-row relative z-10">
-        {/* ─── Left Panel: Compose ──────────────────────── */}
-        <aside className="w-full lg:w-[420px] lg:fixed lg:left-0 lg:top-[56px] lg:h-[calc(100vh-56px-32px)] border-r border-outline-variant/15 bg-surface-container-low/60 backdrop-blur-md p-md lg:p-lg flex flex-col gap-lg overflow-y-auto">
-          <div className="flex flex-col gap-xs">
-            <h2 className="text-primary font-bold text-[0.75rem] uppercase tracking-widest">Compose</h2>
-            <p className="text-on-surface-variant text-label-sm opacity-80">AI Writing Suite</p>
-          </div>
+      {/* ─── Mobile Tab Bar ──────────────────────────────── */}
+      <div className="lg:hidden fixed top-[44px] w-full z-40 flex border-b border-outline-variant/15 bg-surface-container-low/90 backdrop-blur-md">
+        <button
+          onClick={() => setMobileTab('compose')}
+          className={`flex-1 py-2 text-xs font-bold tracking-wider uppercase transition-colors ${mobileTab === 'compose' ? 'text-secondary border-b-2 border-secondary' : 'text-outline'}`}
+        >Compose</button>
+        <button
+          onClick={() => setMobileTab('output')}
+          className={`flex-1 py-2 text-xs font-bold tracking-wider uppercase transition-colors ${mobileTab === 'output' ? 'text-secondary border-b-2 border-secondary' : 'text-outline'}`}
+        >Output {hasContent ? `(${wordCount}w)` : ''}</button>
+      </div>
 
-          <div className="flex flex-col gap-md">
+      {/* ─── Main ────────────────────────────────────────── */}
+      <main className={`pt-[44px] ${hasContent ? 'pb-0' : 'pb-[28px]'} min-h-screen flex relative z-10`}>
+        {/* ─── Compose Panel ────────────────────────────── */}
+        <aside className={`
+          w-full lg:w-[340px] lg:fixed lg:top-[44px] lg:bottom-0
+          lg:border-r border-outline-variant/15 lg:bg-surface-container-low/40 lg:backdrop-blur-md
+          flex flex-col
+          ${mobileTab === 'compose' ? 'flex' : 'hidden'} lg:flex
+          ${hasContent ? '' : 'pb-0'}
+        `}>
+          <div className="flex-1 overflow-y-auto px-3 py-3 sm:px-4 sm:py-4 flex flex-col gap-3">
+            {/* Topic Input */}
             <div className="relative group">
-              <label className="text-label-md text-outline mb-xs block">Topic Ideas</label>
+              <label className="text-[10px] font-bold text-outline uppercase tracking-widest mb-1.5 block">Topic</label>
               <div className="relative">
                 <textarea
                   ref={inputRef}
                   value={topic}
                   onChange={(e) => setTopic(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder="Describe your blog post topic or paste some rough notes..."
+                  placeholder="Describe your blog post topic..."
                   disabled={loading}
-                  rows={4}
-                  className="w-full h-40 bg-surface-container-lowest border border-outline-variant/40 rounded-xl p-md pr-10 text-on-surface focus:ring-2 focus:ring-primary/40 focus:border-primary outline-none transition-all resize-none font-body-md disabled:opacity-50"
+                  rows={3}
+                  className="w-full h-28 bg-surface-container-lowest border border-outline-variant/30 rounded-[10px] px-3 py-2.5 pr-9 text-sm text-on-surface focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none transition-all resize-none disabled:opacity-50"
                 />
-                <span className="absolute top-3 right-3 material-symbols-outlined text-outline group-focus-within:text-primary transition-colors text-[20px]">edit_note</span>
+                <span className="absolute top-2.5 right-3 material-symbols-outlined text-outline/50 group-focus-within:text-primary/60 transition-colors text-[18px]">edit_note</span>
               </div>
             </div>
 
+            {/* Generate Button */}
             {loading ? (
               <button
                 onClick={handleCancel}
-                className="w-full py-md rounded-xl flex items-center justify-center gap-sm text-on-surface font-bold transition-all bg-surface-container border border-outline-variant/30 hover:border-outline-variant/60 hover:text-white"
+                className="w-full py-2.5 rounded-[10px] flex items-center justify-center gap-2 text-sm font-bold transition-all bg-surface-container border border-outline-variant/20 hover:border-outline-variant/40 hover:text-white"
               >
-                <span className="w-3.5 h-3.5 border-2 border-outline-variant border-t-primary rounded-full animate-spin" />
+                <span className="w-3 h-3 border-2 border-outline-variant border-t-primary rounded-full animate-spin" />
                 Cancel
               </button>
             ) : (
               <button
                 onClick={handleGenerate}
                 disabled={!topic.trim()}
-                className="primary-gradient-btn w-full py-md rounded-xl flex items-center justify-center gap-sm text-white font-bold transition-all disabled:opacity-35 disabled:cursor-not-allowed"
+                className="primary-gradient-btn w-full py-2.5 rounded-[10px] flex items-center justify-center gap-2 text-sm font-bold text-white disabled:opacity-30 disabled:cursor-not-allowed"
               >
-                <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>auto_awesome</span>
-                Generate Post
+                <span className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>auto_awesome</span>
+                Generate
               </button>
             )}
-          </div>
 
-          {/* API Settings */}
-          <div className="border-t border-outline-variant/15 pt-md">
-            <button
-              onClick={() => setShowApiSettings(!showApiSettings)}
-              className="flex items-center gap-1.5 text-[0.8rem] text-on-surface-variant bg-transparent border-none cursor-pointer px-0 py-1 font-body-md transition-colors hover:text-on-surface w-full"
-            >
-              <span className="material-symbols-outlined text-[16px]">key</span>
-              <span>API Settings</span>
-              {apiKey && <span className="w-1.5 h-1.5 rounded-full bg-secondary shadow-[0_0_6px_rgba(76,215,246,0.35)] ml-auto" />}
-              <svg className={`w-3 h-3 transition-transform ml-1 ${showApiSettings ? 'rotate-180' : ''}`} viewBox="0 0 12 12" fill="none">
-                <path d="M3 5l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </button>
-            {showApiSettings && (
-              <div className="mt-2 flex flex-col gap-2">
+            {/* Example Topics */}
+            <div className="flex flex-wrap gap-1.5">
+              {EXAMPLES.map((ex, i) => (
+                <button
+                  key={i}
+                  onClick={() => { setTopic(ex); setMobileTab('output') }}
+                  className="text-[11px] px-2 py-1 rounded-full bg-surface-container border border-outline-variant/15 text-outline hover:text-primary hover:border-primary/30 hover:bg-primary/5 transition-all"
+                >
+                  {ex}
+                </button>
+              ))}
+            </div>
+
+            {/* API Settings (expandable inline) */}
+            {showApi && (
+              <div className="border border-outline-variant/15 rounded-[10px] p-3 bg-surface-container-lowest/60 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-outline uppercase tracking-widest">API Key</span>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${apiKey ? 'bg-secondary/15 text-secondary' : 'text-outline'}`}>
+                    {apiKey ? 'Saved' : 'None'}
+                  </span>
+                </div>
                 <div className="relative">
                   <input
                     type="password"
                     value={apiKey}
                     onChange={(e) => setApiKey(e.target.value)}
                     placeholder="Enter your Google API key"
-                    className="w-full bg-surface-container-lowest border border-outline-variant/40 rounded-lg px-3 py-2 pr-9 text-label-md text-on-surface focus:ring-2 focus:ring-primary/40 focus:border-primary outline-none transition-all font-body-md placeholder:text-outline/60"
+                    className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-lg px-2.5 py-1.5 pr-8 text-xs text-on-surface focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none transition-all"
                   />
                   {apiKey && (
-                    <button
-                      onClick={() => setApiKey('')}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-outline hover:text-on-surface transition-colors bg-transparent border-none cursor-pointer"
-                    >
-                      <span className="material-symbols-outlined text-[16px]">close</span>
+                    <button onClick={() => setApiKey('')} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-outline hover:text-on-surface transition-colors bg-transparent border-none cursor-pointer">
+                      <span className="material-symbols-outlined text-[14px]">close</span>
                     </button>
                   )}
                 </div>
-                <div className="flex items-center gap-2">
-                  <select
-                    value={selectedModel}
-                    onChange={(e) => setSelectedModel(e.target.value)}
-                    className="flex-1 bg-surface-container-lowest border border-outline-variant/40 rounded-lg px-3 py-2 text-label-md text-on-surface focus:ring-2 focus:ring-primary/40 focus:border-primary outline-none transition-all font-body-md"
-                  >
-                    {MODELS.map((m) => (
-                      <option key={m} value={m}>{m}</option>
-                    ))}
-                  </select>
-                  <span className={`text-label-xs px-2 py-0.5 rounded-full flex items-center gap-1 ${apiKey ? 'bg-secondary/15 text-secondary' : 'bg-surface-container-high text-outline'}`}>
-                    {apiKey && <span className="w-1 h-1 rounded-full bg-secondary" />}
-                    {apiKey ? (keySaved ? 'Saved' : 'Unsaved') : 'Server key'}
-                  </span>
-                </div>
-                <p className="text-[10px] text-outline/70 leading-tight">
-                  Provide your own Google AI Studio API key. If empty, server-configured keys are used.
-                </p>
+                <select
+                  value={selectedModel}
+                  onChange={(e) => setSelectedModel(e.target.value)}
+                  className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-lg px-2.5 py-1.5 text-xs text-on-surface focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none transition-all"
+                >
+                  {MODELS.map((m) => (<option key={m} value={m}>{m}</option>))}
+                </select>
+                <p className="text-[9px] text-outline/60 leading-tight">Leave empty to use server keys. Saved in browser.</p>
               </div>
             )}
-          </div>
 
-          {/* Example topics */}
-          <div>
-            <button
-              onClick={() => setShowExamples(!showExamples)}
-              className="flex items-center gap-1.5 text-[0.8rem] text-on-surface-variant bg-transparent border-none cursor-pointer px-0 py-1 font-body-md transition-colors hover:text-on-surface"
-            >
-              <span className="material-symbols-outlined text-[16px]">lightbulb</span>
-              Topic ideas
-              <svg className={`w-3 h-3 transition-transform ${showExamples ? 'rotate-180' : ''}`} viewBox="0 0 12 12" fill="none">
-                <path d="M3 5l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </button>
-            {showExamples && (
-              <div className="flex flex-wrap gap-1.5 mt-2">
-                {EXAMPLES.map((ex, i) => (
-                  <button
-                    key={i}
-                    onClick={() => handleExampleClick(ex)}
-                    className="text-[0.78rem] px-2.5 py-1 rounded-full bg-surface-container border border-outline-variant/30 text-on-surface-variant cursor-pointer font-body-md transition-all hover:border-primary hover:text-primary hover:bg-primary/10"
-                  >
-                    {ex}
-                  </button>
+            {/* Error */}
+            {error && (
+              <div className="rounded-[10px] px-3 py-2 text-xs bg-error-container/15 border border-error/15 text-error space-y-1">
+                <div className="flex items-center gap-1.5 font-bold">
+                  <span className="material-symbols-outlined text-[14px]">error</span> Generation failed
+                </div>
+                <p className="opacity-80 break-words">{error.length > 180 ? error.slice(0, 180) + '...' : error}</p>
+                {(error.includes('429') || error.includes('RESOURCE_EXHAUSTED')) && (
+                  <p className="opacity-60 text-[10px]">Key quota exhausted. Try a different key or wait for reset.</p>
+                )}
+                {(error.includes('503') || error.includes('UNAVAILABLE')) && (
+                  <p className="opacity-60 text-[10px]">Model temporarily unavailable. Try again or pick a different model.</p>
+                )}
+              </div>
+            )}
+
+            {/* Features */}
+            {!hasContent && !loading && !error && (
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                {FEATURES.map((f, i) => (
+                  <div key={i} className="bg-surface-container/30 rounded-[10px] p-2.5 card-hover">
+                    <span className={`material-symbols-outlined text-[16px] ${f.color} block mb-0.5`}>{f.icon}</span>
+                    <div className="text-[11px] font-bold text-on-surface">{f.title}</div>
+                    <div className="text-[9px] text-outline leading-tight">{f.desc}</div>
+                  </div>
                 ))}
               </div>
             )}
+
+            {/* Loading status */}
+            {loading && (
+              <div className="flex items-center gap-2 text-[11px] text-primary/70">
+                <span className="w-2 h-2 rounded-full bg-primary animate-pulse shadow-[0_0_6px_rgba(208,188,255,0.3)]" />
+                {loadingTimeout ? 'Still working...' : 'Generating...'}
+              </div>
+            )}
           </div>
 
-          {/* Error message */}
-          {error && (
-            <div className="flex flex-col gap-1 px-3 py-2 rounded-lg text-[0.8rem] bg-error-container/20 border border-error/20 text-error">
-              <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-[16px]">error</span>
-                <span className="font-bold">Generation failed</span>
-              </div>
-              <p className="text-label-sm opacity-90 break-words">
-                {error.length > 200 ? error.slice(0, 200) + '...' : error}
-              </p>
-              {error.includes('429') || error.includes('RESOURCE_EXHAUSTED') ? (
-                <p className="text-[10px] mt-1 opacity-70">
-                  Your API key quota is exhausted. Try a different key, wait for daily reset, or enable billing at aistudio.google.com.
-                </p>
-              ) : null}
-              {error.includes('503') || error.includes('UNAVAILABLE') ? (
-                <p className="text-[10px] mt-1 opacity-70">
-                  The model is temporarily unavailable due to high demand. Please try again in a few minutes or select a different model.
-                </p>
-              ) : null}
-            </div>
-          )}
-
-          {/* Loading/fallback status */}
-          {loading && modelInfo?.fallback && (
-            <div className="flex items-center gap-2 px-3 py-2 rounded-lg text-[0.8rem] bg-primary/10 border border-primary/20 text-primary">
-              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-              Switching model...
-            </div>
-          )}
-
-          {/* Features grid (shown when no content yet) */}
-          {!hasContent && !loading && !error && (
-            <div className="grid grid-cols-2 max-sm:grid-cols-1 gap-md pt-md border-t border-outline-variant/15">
-              {FEATURES.map((f, i) => (
-                <div
-                  key={i}
-                  className="bg-surface-container/40 p-md rounded-xl card-hover"
-                >
-                  <span className={`material-symbols-outlined text-[22px] ${f.color} mb-xs block`}>{f.icon}</span>
-                  <h3 className="text-label-md font-bold text-on-surface block mb-1">{f.title}</h3>
-                  <p className="text-[11px] text-on-surface-variant leading-tight opacity-90">{f.desc}</p>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Status footer */}
-          <div className="mt-auto pt-lg flex flex-col gap-xs">
-            <div className="flex items-center gap-xs">
-              <div className="w-2 h-2 rounded-full bg-secondary-fixed animate-pulse shadow-[0_0_6px_rgba(172,237,255,0.3)]" />
-              <span className="text-label-sm text-secondary">Forge AI active</span>
-            </div>
-            <p className="text-[10px] text-outline opacity-80 uppercase tracking-tighter">v4.2.0 Engine &bull; Ready for prompt</p>
+          {/* Slim Status */}
+          <div className="hidden lg:flex h-[28px] items-center px-4 border-t border-outline-variant/10 text-[9px] text-outline/50">
+            <span className="flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-secondary-fixed animate-pulse shadow-[0_0_4px_rgba(172,237,255,0.2)]" />
+              Ready
+            </span>
+            <span className="ml-auto">{apiKey ? 'Custom key' : 'Server key'}</span>
           </div>
         </aside>
 
-        {/* ─── Right Panel: Output ──────────────────────── */}
-        <section className="flex-1 lg:ml-[420px] p-md md:p-lg lg:p-2xl min-h-[calc(100vh-56px)] flex flex-col">
-          <div className="max-w-4xl mx-auto w-full flex flex-col h-full">
-            <header className="flex justify-between items-end mb-xl">
-              <div>
-                <h1 className="text-[30px] sm:text-[40px] font-bold sm:font-headline-lg text-white mb-2 leading-tight">Output</h1>
-                <div className="flex flex-wrap gap-x-md gap-y-1">
-                  <span className="text-label-md text-outline flex items-center gap-1">
-                    <span className="material-symbols-outlined text-[16px]">description</span>
-                    {wordCount} words
-                  </span>
-                  <span className="text-label-md text-outline flex items-center gap-1">
-                    <span className="material-symbols-outlined text-[16px]">schedule</span>
-                    {readTime} min read
-                  </span>
-                </div>
+        {/* ─── Output Panel ─────────────────────────────── */}
+        <section className={`
+          flex-1 lg:ml-[340px] min-h-[calc(100vh-44px)] flex flex-col
+          ${mobileTab === 'output' ? 'flex' : 'hidden'} lg:flex
+        `}>
+          <div className="flex-1 flex flex-col px-3 py-3 sm:px-4 sm:py-4 lg:px-6 lg:py-5 max-w-4xl mx-auto w-full">
+            {/* Output Header */}
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2.5">
+                <h1 className="text-base font-bold text-white">Output</h1>
+                {hasContent && (
+                  <>
+                    <span className="text-[10px] text-outline/60 font-mono">{wordCount}w · {readTime}m</span>
+                    {modelInfo && (
+                      <span className={`text-[9px] px-1.5 py-0.5 rounded font-mono ${modelInfo.cached ? 'bg-secondary/10 text-secondary' : 'bg-primary/10 text-primary'}`}>
+                        {modelInfo.cached ? 'Cached' : (modelInfo.model?.split('/').pop() || 'AI')}
+                      </span>
+                    )}
+                  </>
+                )}
               </div>
+            </div>
 
-              {/* Toolbar (visible when content exists) */}
-              {hasContent && (
-                <div className="flex gap-sm bg-surface-container-high p-1 rounded-xl border border-outline-variant/30 flex-wrap">
-                  <button
-                    onClick={handleCopy}
-                    className="p-xs hover:bg-surface-variant transition-colors rounded text-on-surface-variant hover:text-white active:scale-[0.98]"
-                    title="Copy to clipboard"
-                  >
-                    <span className="material-symbols-outlined text-[18px]">{copied ? 'check' : 'content_copy'}</span>
-                  </button>
-                  {modelInfo && (
-                    <span className={`flex items-center gap-1 px-2.5 py-1 rounded-[6px] text-[0.65rem] font-bold tracking-wide ${
-                      modelInfo.cached
-                        ? 'bg-secondary-container/15 border border-secondary-container/25 text-secondary'
-                        : 'bg-primary/10 border border-primary/20 text-primary'
-                    }`}>
-                      <span className="material-symbols-outlined text-[12px]">{modelInfo.cached ? 'cached' : 'model_training'}</span>
-                      {modelInfo.cached ? 'Cached' : (modelInfo.model?.split('/').pop() || 'AI')}
-                    </span>
-                  )}
-                </div>
-              )}
-            </header>
+            {/* Content Area */}
+            <div className="flex-1 rounded-xl bg-surface-container-lowest/50 border border-outline-variant/10 backdrop-blur-[6px] relative flex flex-col overflow-hidden">
+              <div className="absolute inset-0 grid-overlay opacity-20 pointer-events-none" />
 
-            {/* Editor Canvas */}
-            <div className="flex-1 rounded-xl sm:rounded-2xl bg-surface-container-lowest/60 border border-outline-variant/10 backdrop-blur-[8px] relative flex flex-col items-center justify-center overflow-hidden p-lg md:p-xl">
-              <div className="absolute inset-0 grid-overlay opacity-30 pointer-events-none" />
-
-              {/* Empty State */}
               {!hasContent && !isGenerating && (
-                <div className="text-center flex flex-col items-center gap-md relative z-10">
-                  <div className="w-16 sm:w-20 h-16 sm:h-20 rounded-full bg-surface-container-high/60 flex items-center justify-center border border-outline-variant/25 mb-md shadow-xl">
-                    <span className="material-symbols-outlined text-[30px] sm:text-[40px] text-outline/40">auto_fix_high</span>
+                <div className="flex-1 flex flex-col items-center justify-center text-center px-6 relative z-10">
+                  <div className="w-12 h-12 rounded-full bg-surface-container-high/50 flex items-center justify-center border border-outline-variant/15 mb-3">
+                    <span className="material-symbols-outlined text-[22px] text-outline/30">auto_fix_high</span>
                   </div>
-                  <h3 className="text-[20px] sm:text-headline-md text-on-surface">Your masterpiece starts here</h3>
-                  <p className="text-on-surface-variant max-w-sm font-body-md opacity-90">
-                    Fill in your topic ideas on the left and click 'Generate' to forge your next viral blog post with high-precision AI.
-                  </p>
-                  <div className="mt-xl flex flex-wrap justify-center gap-md">
-                    {TOPIC_TAGS.map((tag, i) => (
-                      <div key={i} className="px-md py-sm bg-surface-container border border-outline-variant/20 rounded-full text-label-md text-secondary/80">
-                        {tag}
-                      </div>
-                    ))}
-                  </div>
+                  <h3 className="text-sm font-bold text-on-surface mb-1">Your masterpiece starts here</h3>
+                  <p className="text-[11px] text-outline/60 max-w-xs">Enter a topic on the left and hit Generate to forge your next blog post.</p>
                 </div>
               )}
 
-              {/* Loading state (no content yet) */}
               {isGenerating && (
-                <div className="text-center flex flex-col items-center gap-md relative z-10">
-                  <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
-                    <span className="material-symbols-outlined text-[28px] text-primary animate-spin">progress_activity</span>
+                <div className="flex-1 flex flex-col items-center justify-center text-center px-6 relative z-10">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center border border-primary/15 mb-3">
+                    <span className="material-symbols-outlined text-[22px] text-primary animate-spin">progress_activity</span>
                   </div>
-                  <h3 className="text-headline-md text-primary">Forging content...</h3>
-                  <p className="text-on-surface-variant text-sm opacity-80">
-                    {loadingTimeout
-                      ? 'Still working — AI generation can take up to a minute'
-                      : 'Our AI is crafting a publication-ready article'}
+                  <h3 className="text-sm font-bold text-primary mb-1">Forging content...</h3>
+                  <p className="text-[11px] text-on-surface-variant/70">
+                    {loadingTimeout ? 'Still working — this can take up to a minute' : 'AI is crafting your article'}
                   </p>
-                  {loadingTimeout && (
-                    <p className="text-label-sm text-primary/60 animate-pulse">
-                      If it takes too long, check that your API key has available quota
-                    </p>
-                  )}
                 </div>
               )}
 
-              {/* Output Content */}
               {hasContent && (
                 <div className="w-full h-full relative z-10 flex flex-col">
                   <div
@@ -528,32 +388,18 @@ function App() {
                     className={`blog-output ${loading ? 'streaming' : ''}`}
                     dangerouslySetInnerHTML={{ __html: parseMarkdown(blogPost) }}
                   />
-                  {loading && <span className="text-primary text-base animate-pulse ml-1 mt-1">▊</span>}
+                  {loading && <span className="text-primary text-sm animate-pulse ml-3 mt-1">▊</span>}
                 </div>
               )}
             </div>
 
-            <div className="mt-lg flex items-center justify-between text-label-sm sm:text-label-md text-outline opacity-80 px-sm sm:px-md">
-              <span className="truncate mr-2">Press {navigator.platform?.includes('Mac') ? 'CMD' : 'Ctrl'} + G</span>
-              <span className="flex-shrink-0">Auto-save: <span className="text-secondary">Enabled</span></span>
+            {/* Tip */}
+            <div className="mt-2 text-[9px] text-outline/40 text-center hidden lg:block">
+              {navigator.platform?.includes('Mac') ? '⌘' : 'Ctrl'}+G to generate
             </div>
           </div>
         </section>
       </main>
-
-      {/* ─── Footer ──────────────────────────────────────── */}
-      <footer className="fixed bottom-0 w-full h-[32px] z-40 glass-header border-t border-outline-variant/15 flex items-center justify-between px-md lg:px-lg">
-        <div className="flex items-center gap-sm lg:gap-md min-w-0">
-          <span className="text-[10px] sm:text-label-sm font-bold text-secondary truncate">v1.0.4 - All Systems Operational</span>
-        </div>
-        <div className="flex gap-sm lg:gap-md flex-shrink-0">
-          <a className="text-label-sm text-on-surface-variant hover:text-primary transition-colors" href="#">Status</a>
-          <a className="text-label-sm text-on-surface-variant hover:text-primary transition-colors" href="#">Documentation</a>
-          <a className="text-label-sm text-on-surface-variant hover:text-primary transition-colors" href="#">API</a>
-        </div>
-      </footer>
     </div>
   )
 }
-
-export default App
