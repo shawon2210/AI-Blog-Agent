@@ -213,7 +213,7 @@ def _handle_error(model_idx: int, key_idx: int, exc: Exception) -> bool:
 async def _call_model(model_idx: int, key_idx: int, topic: str) -> str:
     runner = _get_runner(model_idx, key_idx)
     session_id = str(uuid.uuid4())
-    session = _session_service.create_session(
+    session = await _session_service.create_session(
         user_id="user1", app_name="ai_blog_agent", session_id=session_id,
     )
     msg = types.Content(
@@ -240,7 +240,7 @@ async def _call_model(model_idx: int, key_idx: int, topic: str) -> str:
 async def _call_model_stream(model_idx: int, key_idx: int, topic: str):
     runner = _get_runner(model_idx, key_idx)
     session_id = str(uuid.uuid4())
-    session = _session_service.create_session(
+    session = await _session_service.create_session(
         user_id="user1", app_name="ai_blog_agent", session_id=session_id,
     )
     msg = types.Content(
